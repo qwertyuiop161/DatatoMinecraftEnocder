@@ -1,4 +1,4 @@
 @Echo OFF
 cd src\main\java
-javac App
+javac App.java
 java App.java

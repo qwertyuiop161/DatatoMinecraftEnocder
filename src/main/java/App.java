@@ -15,17 +15,27 @@ public class App {
 
         
 
-            System.out.println("choose one to encode input.* into r.0.0.mca, 2 to decode");
-            Scanner scanner = new Scanner(System.in);
-            int x = scanner.nextInt();
+            System.out.println("choose 1 to encode, 2 to decode");
+Scanner scanner = new Scanner(System.in);
+int x = scanner.nextInt();
 
-            switch (x){
-                case 1:
-                    encodeFileToMCA("input.*", "r.0.0.mca");
-                case 2:
-                    decodeMCA("r.0.0.mca", "input.*");
+scanner.nextLine(); 
 
-            }
+System.out.println("enter file extension (e.g., png or txt)");
+String y = scanner.nextLine();
+
+String projectRoot = System.getProperty("user.dir");
+String inputPath = projectRoot + java.io.File.separator + "input." + y;
+
+switch (x) {
+    case 1:
+        encodeFileToMCA(inputPath, "r.0.0.mca");
+        break;
+    case 2:
+        decodeMCA("r.0.0.mca", inputPath);
+        break;
+}
+
     }
     private static void encodeFileToMCA(String inputPath, String outputMCA) throws Exception {
 
