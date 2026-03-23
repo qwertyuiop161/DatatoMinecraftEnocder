@@ -3,6 +3,7 @@ import java.io.ByteArrayOutputStream;
 import java.io.DataInputStream;
 import java.io.DataOutputStream;
 import java.io.RandomAccessFile;
+import java.io.File;
 import java.nio.file.Files;
 import java.nio.file.Paths;
 import java.util.Base64;
@@ -12,31 +13,42 @@ import java.util.zip.InflaterInputStream;
 
 public class App {
     public static void main(String[] args) throws Exception {
+        File folder = new File(".");
+        File[] files = folder.listFiles();
+        File inputFile = null;
+        File mcaFile = null;
 
-        
+        for (File f : files) {
+            if (f.getName().startsWith("input.") && f.isFile()) {
+                inputFile = f;
+            }
 
-            System.out.println("choose 1 to encode, 2 to decode");
-Scanner scanner = new Scanner(System.in);
-int x = scanner.nextInt();
+            if (f.getName().equals("r.0.0.mca")) {
+                mcaFile = f;
+            }
+        }
 
-scanner.nextLine(); 
+        if (inputFile != null && mcaFile == null) {
+            System.out.println("Input file detected: " + inputFile.getName());
+            encodeFileToMCA(inputFile.getName(), "r.0.0.mca");
+            return;
+        }
 
-System.out.println("enter file extension (e.g., png or txt)");
-String y = scanner.nextLine();
+        if (mcaFile != null && inputFile == null) {
+            System.out.println("MCA detected. Reconstructing file...");
 
-String projectRoot = System.getProperty("user.dir");
-String inputPath = projectRoot + java.io.File.separator + "input." + y;
+            String outputName = "reconstructed.bin";
+            decodeMCA("r.0.0.mca", outputName);
 
-switch (x) {
-    case 1:
-        encodeFileToMCA(inputPath, "r.0.0.mca");
-        break;
-    case 2:
-        decodeMCA("r.0.0.mca", inputPath);
-        break;
-}
+            System.out.println("File restored as " + outputName);
+            return;
+        }
 
+        System.out.println("Place ONE of the following in the folder:");
+        System.out.println("  input.<anything>");
+        System.out.println("  r.0.0.mca");
     }
+
     private static void encodeFileToMCA(String inputPath, String outputMCA) throws Exception {
 
         byte[] fileBytes = Files.readAllBytes(Paths.get(inputPath));
@@ -78,14 +90,15 @@ switch (x) {
 
         System.out.println("Encoded successfully.");
     }
+
     private static void decodeMCA(String mcaPath, String outputPath) throws Exception {
 
         RandomAccessFile raf = new RandomAccessFile(mcaPath, "r");
 
         raf.seek(0);
         int offset = (raf.readUnsignedByte() << 16)
-                   | (raf.readUnsignedByte() << 8)
-                   | raf.readUnsignedByte();
+                | (raf.readUnsignedByte() << 8)
+                | raf.readUnsignedByte();
         int sectors = raf.readUnsignedByte();
 
         if (offset == 0) {
