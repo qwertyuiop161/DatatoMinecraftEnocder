@@ -21,6 +21,7 @@ dependencies {
     testRuntimeOnly("org.junit.platform:junit-platform-launcher")
 
     // This dependency is used by the application.
+    implementation("de.pauleff:jmcx:1.1.0")
     implementation(libs.guava)
     implementation("com.googlecode.json-simple:json-simple:1.1.1")
 }

@@ -6,8 +6,17 @@ import java.util.*;
 import org.json.simple.JSONArray;
 import org.json.simple.parser.JSONParser;
 
+import de.pauleff.jmcx.api.AnvilFactory;
+import de.pauleff.jmcx.api.IAnvilReader;
+import de.pauleff.jmcx.api.IAnvilWriter;
+import de.pauleff.jmcx.api.IChunk;
+import de.pauleff.jmcx.api.IRegion;
+import de.pauleff.jmcx.core.Chunk;
+import de.pauleff.jmcx.core.Region;
+import de.pauleff.jmcx.formats.anvil.AnvilReader;
+
 public class Main {
-    static int cap = 256 * 384;
+    static int cap = 512*512 * 384;
     static int BASE;
     static String[] idMap;
     static Map<String, Integer> reverseMap = new HashMap<>();
@@ -26,43 +35,46 @@ public class Main {
     public static void main(String[] args) throws Exception {
         loadJson();
         Scanner s = new Scanner(System.in);
-        System.out.println("1:enc 2:dec");
-        int c = s.nextInt();
-
-        if (c == 1) {
-            System.out.println("file:");
-            String f = "app/src/main/resources/" + s.next();
-            List<String> r = enc(f);
-            int last = r.size() - 1;
-            while (last >= 0 && r.get(last).equals(idMap[0]))
-                last--;
-            System.out.print("[");
-            for (int i = 0; i <= last; i++)
-                System.out.print("\"" + r.get(i) + "\"" + (i == last ? "" : ", "));
-            System.out.println("]");
-        } else {
-            System.out.println("list:");
-            s.nextLine();
-            String in = s.nextLine();
-            String v = in.trim();
-            if (v.startsWith("["))
-                v = v.substring(1);
-            if (v.endsWith("]"))
-                v = v.substring(0, v.length() - 1);
-            String[] p = v.split(",");
-            List<String> l = new ArrayList<>();
-            for (String x : p) {
-                String cleaned = x.trim();
-                while (cleaned.startsWith("\""))
-                    cleaned = cleaned.substring(1);
-                while (cleaned.endsWith("\""))
-                    cleaned = cleaned.substring(0, cleaned.length() - 1);
-                if (!cleaned.isEmpty())
-                    l.add(cleaned);
-            }
-            dec(l);
-            System.out.println("done");
+        //input for enc or dec, 1 is enc
+        //store it in c
+        //if(c==1){
+        System.out.println("file:");
+        String f = "app/src/main/resources/" + s.next();
+        List<String> r = enc(f);
+        File regionFile=new File("/app/src/main/resources/r.0.0.mca");
+        IAnvilReader reader = AnvilFactory.createReader(regionFile);
+        IRegion region = reader.readRegion();
+        List<IChunk> chunks = region.getChunks();
+        for (IChunk chunk :chunks) {
+            region.removeChunk(chunk.getX(), chunk.getZ());
         }
+        IAnvilWriter writer = AnvilFactory.createWriter();
+        writer.writeRegion(region, regionFile);
+        //}else {
+        //     System.out.println("list:");
+        //     s.nextLine();
+        //     String in = s.nextLine();
+        //     String v = in.trim();
+        //     if (v.startsWith("["))
+        //         v = v.substring(1);
+        //     if (v.endsWith("]"))
+        //         v = v.substring(0, v.length() - 1);
+        //     String[] p = v.split(",");
+        //     List<String> l = new ArrayList<>();
+        //     for (String x : p) {
+        //         String cleaned = x.trim();
+        //         while (cleaned.startsWith("\""))
+        //             cleaned = cleaned.substring(1);
+        //         while (cleaned.endsWith("\""))
+        //             cleaned = cleaned.substring(0, cleaned.length() - 1);
+        //         if (!cleaned.isEmpty())
+        //             l.add(cleaned);
+        //     }
+        //     dec(l);
+        //     System.out.println("done");
+        // }
+        
+        
     }
 
     public static List<String> enc(String f) throws IOException {
