@@ -8,8 +8,7 @@ import org.json.simple.parser.JSONParser;
 
 public class Main {
     static int cap = 256 * 384;
-    static int b = 10;
-    static int msk = (1 << b) - 1;
+    static int BASE;
     static String[] idMap;
     static Map<String, Integer> reverseMap = new HashMap<>();
 
@@ -21,6 +20,7 @@ public class Main {
             idMap[i] = (String) a.get(i);
             reverseMap.put(idMap[i], i);
         }
+        BASE=idMap.length;
     }
 
     public static void main(String[] args) throws Exception {
@@ -70,25 +70,31 @@ public class Main {
         String filenameOnly = Paths.get(f).getFileName().toString();
         String ex = filenameOnly.substring(filenameOnly.lastIndexOf(".") + 1);
         List<Integer> l = new ArrayList<>();
-        l.add(ex.length() & msk);
+        l.add(ex.length());
         for (char ch : ex.toCharArray())
-            l.add((int) ch & msk);
+            l.add((int) ch);
         long len = by.length;
-        l.add((int) ((len >> 20) & msk));
-        l.add((int) ((len >> 10) & msk));
-        l.add((int) (len & msk));
+        l.add((int) ((len/(BASE*BASE))%BASE));
+        l.add((int) ((len / BASE) % BASE));
+        l.add((int) (len % BASE));
 
-        int buf = 0, n = 0;
+        java.math.BigInteger BIG_BASE = java.math.BigInteger.valueOf(BASE);
+        java.math.BigInteger num = java.math.BigInteger.ZERO;
         for (byte v : by) {
-            buf = (buf << 8) | (v & 0xFF);
-            n += 8;
-            while (n >= b) {
-                l.add((buf >> (n - b)) & msk);
-                n -= b;
+            num=num.shiftLeft(8).or(java.math.BigInteger.valueOf(v & 0xFF));
+        }
+        List<Integer> dataDigits = new ArrayList<>();
+        if (num.equals(java.math.BigInteger.ZERO)) {
+            dataDigits.add(0);
+        } else {
+            while (num.compareTo(java.math.BigInteger.ZERO)>0) {
+                java.math.BigInteger[] divRem = num.divideAndRemainder(BIG_BASE);
+                dataDigits.add(divRem[1].intValue());
+                num=divRem[0];
             }
         }
-        if (n > 0)
-            l.add((buf << (b - n)) & msk);
+        Collections.reverse(dataDigits);
+        l.addAll(dataDigits);
         while (l.size() < cap)
             l.add(0);
         List<String> stringList = new ArrayList<>();
@@ -109,25 +115,26 @@ public class Main {
                 l.add(val);
         }
         int idx = 0;
-        int el = l.get(idx++) & msk;
+        int el = l.get(idx++);
         StringBuilder sb = new StringBuilder();
         for (int i = 0; i < el; i++) {
-            sb.append((char) (int) (l.get(idx++) & msk));
+            sb.append((char) (int) (l.get(idx++)));
         }
         String ex = sb.toString();
-        long target = ((long) (l.get(idx++) & msk) << 20) | ((long) (l.get(idx++) & msk) << 10)
-                | (long) (l.get(idx++) & msk);
+        long target = (long) l.get(idx++) * BASE * BASE
+            + (long) l.get(idx++) * BASE
+            + (long) l.get(idx++);
+        java.math.BigInteger BIG_BASE = java.math.BigInteger.valueOf(BASE);
+        java.math.BigInteger num = java.math.BigInteger.ZERO;
+        for (int i = idx; i<l.size(); i++) 
+            num=num.multiply(BIG_BASE).add(java.math.BigInteger.valueOf(l.get(i)));
         byte[] r = new byte[(int) target];
-        int buf = 0, n = 0, k = 0;
-        for (int i = idx; i < l.size() && k < target; i++) {
-            buf = (buf << b) | (l.get(i) & msk);
-            n += b;
-            while (n >= 8 && k < target) {
-                r[k++] = (byte) ((buf >> (n - 8)) & 0xFF);
-                n -= 8;
-            }
+        for (int i = (int) target -1; i>=0; i--) {
+            java.math.BigInteger[] divRem = num.divideAndRemainder(java.math.BigInteger.valueOf(256));
+            r[i] = divRem[1].byteValue();
+            num = divRem[0];
         }
-        Files.write(Paths.get("output." + ex), r);
+        Files.write(Paths.get("output."+ex),r);
     }
 
 }
