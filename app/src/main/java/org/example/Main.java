@@ -14,9 +14,12 @@ import de.pauleff.jmcx.api.IRegion;
 import de.pauleff.jmcx.core.Chunk;
 import de.pauleff.jmcx.core.Region;
 import de.pauleff.jmcx.formats.anvil.AnvilReader;
+import de.pauleff.jmcx.formats.anvil.AnvilWriter;
+import de.pauleff.jnbt.api.ICompoundTag;
+import de.pauleff.jnbt.api.IListTag;
 
 public class Main {
-    static int cap = 512*512 * 384;
+    static int cap = 512 * 512 * 384;
     static int BASE;
     static String[] idMap;
     static Map<String, Integer> reverseMap = new HashMap<>();
@@ -29,52 +32,66 @@ public class Main {
             idMap[i] = (String) a.get(i);
             reverseMap.put(idMap[i], i);
         }
-        BASE=idMap.length;
+        BASE = idMap.length;
     }
 
     public static void main(String[] args) throws Exception {
         loadJson();
         Scanner s = new Scanner(System.in);
-        //input for enc or dec, 1 is enc
-        //store it in c
-        //if(c==1){
-        System.out.println("file:");
-        String f = "app/src/main/resources/" + s.next();
-        List<String> r = enc(f);
-        File regionFile=new File("/app/src/main/resources/r.0.0.mca");
-        IAnvilReader reader = AnvilFactory.createReader(regionFile);
+        // input for enc or dec, 1 is enc
+        // store it in c
+        // if(c==1){
+        // System.out.println("file:");
+        // String f = "app/src/main/resources/" + s.next();
+        // List<String> r = enc(f);
+        AnvilReader reader = new AnvilReader(new File("app/src/main/java/org/example/r.0.0.mca"));
         IRegion region = reader.readRegion();
         List<IChunk> chunks = region.getChunks();
-        for (IChunk chunk :chunks) {
-            region.removeChunk(chunk.getX(), chunk.getZ());
+        Optional<IChunk> chunkOpt = region.getChunk(0, 0);
+        if (chunkOpt.isPresent()) {
+            IChunk chunk = chunkOpt.get();
+            ICompoundTag nbt = chunk.getNBTData();
+            IListTag sections = nbt.getList("sections");
+            for (int i = 0; i < sections.size(); i++) {
+                ICompoundTag section = (ICompoundTag) sections.get(i);
+                ICompoundTag blockStates = section.getCompound("block_states");
+                IListTag palette = blockStates.getList("palette");
+
+                for (int j = 0; j < palette.size(); j++) {
+                    ICompoundTag block = (ICompoundTag) palette.get(j);
+                    if ("minecraft:dirt".equals(block.getString("Name"))) {
+                        block.setString("Name", "minecraft:diamond_block");
+                    }
+                }
+            }
         }
-        IAnvilWriter writer = AnvilFactory.createWriter();
-        writer.writeRegion(region, regionFile);
-        //}else {
-        //     System.out.println("list:");
-        //     s.nextLine();
-        //     String in = s.nextLine();
-        //     String v = in.trim();
-        //     if (v.startsWith("["))
-        //         v = v.substring(1);
-        //     if (v.endsWith("]"))
-        //         v = v.substring(0, v.length() - 1);
-        //     String[] p = v.split(",");
-        //     List<String> l = new ArrayList<>();
-        //     for (String x : p) {
-        //         String cleaned = x.trim();
-        //         while (cleaned.startsWith("\""))
-        //             cleaned = cleaned.substring(1);
-        //         while (cleaned.endsWith("\""))
-        //             cleaned = cleaned.substring(0, cleaned.length() - 1);
-        //         if (!cleaned.isEmpty())
-        //             l.add(cleaned);
-        //     }
-        //     dec(l);
-        //     System.out.println("done");
+        AnvilWriter writer = new AnvilWriter(new File("r.0.0-updated.mca"));
+        writer.writeRegion(region);
+
+        // }else {
+        // System.out.println("list:");
+        // s.nextLine();
+        // String in = s.nextLine();
+        // String v = in.trim();
+        // if (v.startsWith("["))
+        // v = v.substring(1);
+        // if (v.endsWith("]"))
+        // v = v.substring(0, v.length() - 1);
+        // String[] p = v.split(",");
+        // List<String> l = new ArrayList<>();
+        // for (String x : p) {
+        // String cleaned = x.trim();
+        // while (cleaned.startsWith("\""))
+        // cleaned = cleaned.substring(1);
+        // while (cleaned.endsWith("\""))
+        // cleaned = cleaned.substring(0, cleaned.length() - 1);
+        // if (!cleaned.isEmpty())
+        // l.add(cleaned);
         // }
-        
-        
+        // dec(l);
+        // System.out.println("done");
+        // }
+
     }
 
     public static List<String> enc(String f) throws IOException {
@@ -86,23 +103,23 @@ public class Main {
         for (char ch : ex.toCharArray())
             l.add((int) ch);
         long len = by.length;
-        l.add((int) ((len/(BASE*BASE))%BASE));
+        l.add((int) ((len / (BASE * BASE)) % BASE));
         l.add((int) ((len / BASE) % BASE));
         l.add((int) (len % BASE));
 
         java.math.BigInteger BIG_BASE = java.math.BigInteger.valueOf(BASE);
         java.math.BigInteger num = java.math.BigInteger.ZERO;
         for (byte v : by) {
-            num=num.shiftLeft(8).or(java.math.BigInteger.valueOf(v & 0xFF));
+            num = num.shiftLeft(8).or(java.math.BigInteger.valueOf(v & 0xFF));
         }
         List<Integer> dataDigits = new ArrayList<>();
         if (num.equals(java.math.BigInteger.ZERO)) {
             dataDigits.add(0);
         } else {
-            while (num.compareTo(java.math.BigInteger.ZERO)>0) {
+            while (num.compareTo(java.math.BigInteger.ZERO) > 0) {
                 java.math.BigInteger[] divRem = num.divideAndRemainder(BIG_BASE);
                 dataDigits.add(divRem[1].intValue());
-                num=divRem[0];
+                num = divRem[0];
             }
         }
         Collections.reverse(dataDigits);
@@ -134,19 +151,19 @@ public class Main {
         }
         String ex = sb.toString();
         long target = (long) l.get(idx++) * BASE * BASE
-            + (long) l.get(idx++) * BASE
-            + (long) l.get(idx++);
+                + (long) l.get(idx++) * BASE
+                + (long) l.get(idx++);
         java.math.BigInteger BIG_BASE = java.math.BigInteger.valueOf(BASE);
         java.math.BigInteger num = java.math.BigInteger.ZERO;
-        for (int i = idx; i<l.size(); i++) 
-            num=num.multiply(BIG_BASE).add(java.math.BigInteger.valueOf(l.get(i)));
+        for (int i = idx; i < l.size(); i++)
+            num = num.multiply(BIG_BASE).add(java.math.BigInteger.valueOf(l.get(i)));
         byte[] r = new byte[(int) target];
-        for (int i = (int) target -1; i>=0; i--) {
+        for (int i = (int) target - 1; i >= 0; i--) {
             java.math.BigInteger[] divRem = num.divideAndRemainder(java.math.BigInteger.valueOf(256));
             r[i] = divRem[1].byteValue();
             num = divRem[0];
         }
-        Files.write(Paths.get("output."+ex),r);
+        Files.write(Paths.get("output." + ex), r);
     }
 
 }
