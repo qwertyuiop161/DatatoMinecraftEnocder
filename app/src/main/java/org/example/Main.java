@@ -3,20 +3,16 @@ package org.example;
 import java.io.*;
 import java.nio.file.*;
 import java.util.*;
+
+import javax.sql.DataSource;
+import javax.xml.crypto.Data;
+
+import org.jglrxavpok.hephaistos.data.RandomAccessFileSource;
+import org.jglrxavpok.hephaistos.mca.BlockState;
+import org.jglrxavpok.hephaistos.mca.ChunkColumn;
+import org.jglrxavpok.hephaistos.mca.RegionFile;
 import org.json.simple.JSONArray;
 import org.json.simple.parser.JSONParser;
-
-import de.pauleff.jmcx.api.AnvilFactory;
-import de.pauleff.jmcx.api.IAnvilReader;
-import de.pauleff.jmcx.api.IAnvilWriter;
-import de.pauleff.jmcx.api.IChunk;
-import de.pauleff.jmcx.api.IRegion;
-import de.pauleff.jmcx.core.Chunk;
-import de.pauleff.jmcx.core.Region;
-import de.pauleff.jmcx.formats.anvil.AnvilReader;
-import de.pauleff.jmcx.formats.anvil.AnvilWriter;
-import de.pauleff.jnbt.api.ICompoundTag;
-import de.pauleff.jnbt.api.IListTag;
 
 public class Main {
     static int cap = 512 * 512 * 384;
@@ -35,6 +31,16 @@ public class Main {
         BASE = idMap.length;
     }
 
+    public static void fillChunk(ChunkColumn c, BlockState b) {
+        for (int x = 0; x < 16; x++) {
+            for (int z = 0; z < 16; z++) {
+                for (int y = 0; y < 256; y++) {
+                    c.setBlockState(x, y, z, b);
+                }
+            }
+        }
+    }
+
     public static void main(String[] args) throws Exception {
         loadJson();
         Scanner s = new Scanner(System.in);
@@ -44,30 +50,15 @@ public class Main {
         // System.out.println("file:");
         // String f = "app/src/main/resources/" + s.next();
         // List<String> r = enc(f);
-        AnvilReader reader = new AnvilReader(new File("app/src/main/java/org/example/r.0.0.mca"));
-        IRegion region = reader.readRegion();
-        List<IChunk> chunks = region.getChunks();
-        Optional<IChunk> chunkOpt = region.getChunk(0, 0);
-        if (chunkOpt.isPresent()) {
-            IChunk chunk = chunkOpt.get();
-            ICompoundTag nbt = chunk.getNBTData();
-            IListTag sections = nbt.getList("sections");
-            for (int i = 0; i < sections.size(); i++) {
-                ICompoundTag section = (ICompoundTag) sections.get(i);
-                ICompoundTag blockStates = section.getCompound("block_states");
-                IListTag palette = blockStates.getList("palette");
 
-                for (int j = 0; j < palette.size(); j++) {
-                    ICompoundTag block = (ICompoundTag) palette.get(j);
-                    if ("minecraft:dirt".equals(block.getString("Name"))) {
-                        block.setString("Name", "minecraft:diamond_block");
-                    }
-                }
-            }
+        RandomAccessFile raf = new RandomAccessFile("r.0.0.mca", "rw");
+        RandomAccessFileSource dataSource = new RandomAccessFileSource(raf);
+        RegionFile region = new RegionFile(dataSource, 0, 0);
+        for (int i = 0; i<16; i++) {
+            ChunkColumn chunk = region.getOrCreateChunk(0, i);
+            fillChunk(chunk, new BlockState("minecraft:emerald_block"));
+            region.writeColumn(chunk);
         }
-        AnvilWriter writer = new AnvilWriter(new File("r.0.0-updated.mca"));
-        writer.writeRegion(region);
-
         // }else {
         // System.out.println("list:");
         // s.nextLine();
