@@ -13,6 +13,7 @@ plugins {
 repositories {
     // Use Maven Central for resolving dependencies.
     mavenCentral()
+    maven(url = "https://jitpack.io")
 }
 dependencies {
     // Use JUnit Jupiter for testing.
@@ -21,7 +22,7 @@ dependencies {
     testRuntimeOnly("org.junit.platform:junit-platform-launcher")
 
     // This dependency is used by the application.
-    implementation("io.github.jglrxavpok.hephaistos:common:2.2.0")
+    implementation("com.github.Querz:NBT:6.1")
     implementation(libs.guava)
     implementation("com.googlecode.json-simple:json-simple:1.1.1")
 }

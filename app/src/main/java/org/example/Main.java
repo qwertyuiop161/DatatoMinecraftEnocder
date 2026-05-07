@@ -1,26 +1,35 @@
 package org.example;
 
+import java.awt.Dimension;
+import java.awt.FlowLayout;
 import java.io.*;
 import java.nio.file.*;
 import java.util.*;
+import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
+import javax.swing.JButton;
+import javax.swing.JFileChooser;
+import javax.swing.JFrame;
+import javax.swing.JPanel;
+import javax.swing.UIManager;
 import javax.sql.DataSource;
 import javax.xml.crypto.Data;
 
-import org.jglrxavpok.hephaistos.data.RandomAccessFileSource;
-import org.jglrxavpok.hephaistos.mca.BlockState;
-import org.jglrxavpok.hephaistos.mca.ChunkColumn;
-import org.jglrxavpok.hephaistos.mca.RegionFile;
 import org.json.simple.JSONArray;
 import org.json.simple.parser.JSONParser;
+
+import net.querz.mca.Chunk;
+import net.querz.mca.MCAFile;
 
 public class Main {
     static int cap = 512 * 512 * 384;
     static int BASE;
     static String[] idMap;
     static Map<String, Integer> reverseMap = new HashMap<>();
+    static Map<Integer, String> regularMap = new HashMap<>();
 
-    public static void loadJson() throws Exception {
+    public static void loadJson() throws Exception, IOException {
         JSONParser parser = new JSONParser();
         JSONArray a = (JSONArray) parser.parse(new FileReader("app/src/main/resources/ids.json"));
         idMap = new String[a.size()];
@@ -29,17 +38,11 @@ public class Main {
             reverseMap.put(idMap[i], i);
         }
         BASE = idMap.length;
-    }
-
-    public static void fillChunk(ChunkColumn c, BlockState b) {
-        for (int x = 0; x < 16; x++) {
-            for (int z = 0; z < 16; z++) {
-                for (int y = 0; y < 256; y++) {
-                    c.setBlockState(x, y, z, b);
-                }
-            }
+        for (Map.Entry<String, Integer> entry : reverseMap.entrySet()) {
+            regularMap.put(entry.getValue(), entry.getKey());
         }
     }
+
 
     public static void main(String[] args) throws Exception {
         loadJson();
@@ -50,15 +53,64 @@ public class Main {
         // System.out.println("file:");
         // String f = "app/src/main/resources/" + s.next();
         // List<String> r = enc(f);
+        UIManager.setLookAndFeel(UIManager.getSystemLookAndFeelClassName());
+        JFrame frame = new JFrame("Data Encryptor");
+        frame.setLayout(new FlowLayout());
+        JButton EncButton = new JButton("Select File to Encode");
+        JButton DecButton = new JButton("Select File to Decode");
+        JButton downloadButton = new JButton("Download MCA or decrypted file");
+        JPanel panel = new JPanel();
+        
+        EncButton.setPreferredSize(new Dimension(100, 50));
+        DecButton.setPreferredSize(new Dimension(100, 50));
+        downloadButton.setPreferredSize(new Dimension(100, 500));
 
-        RandomAccessFile raf = new RandomAccessFile("r.0.0.mca", "rw");
-        RandomAccessFileSource dataSource = new RandomAccessFileSource(raf);
-        RegionFile region = new RegionFile(dataSource, 0, 0);
-        for (int i = 0; i<16; i++) {
-            ChunkColumn chunk = region.getOrCreateChunk(0, i);
-            fillChunk(chunk, new BlockState("minecraft:emerald_block"));
-            region.writeColumn(chunk);
-        }
+        EncButton.addActionListener(e -> {
+            try {
+                Path path = getFile();
+                File file = new File(path.toString());
+                List<String> blockList = enc(file.getAbsolutePath());
+                MCAFile mca = new MCAFile(0, 0);
+                int bls = blockList.size();
+                int blocksPerChunk = 16*16*384;
+                int numChunks = (int) Math.ceil((double) bls / blocksPerChunk);
+                int numRows = (numChunks+15)/16;
+                int globalIdx=0;
+                for (int i = 0; i<numRows; i++) {
+                     int chunksInThisRow = Math.min(16, numChunks-(i*16));
+                     for (int j = 0; j<chunksInThisRow; j++) {
+                        Chunk chunk = Chunk.newChunk();
+                         for (int k = 0; k<blocksPerChunk; k++) {
+                             int x = k%16;
+                             int y = 319-((k/16)%384);
+                             int z = (k/6144)%16;
+                             if (globalIdx < bls) {
+                                chunk.setBlockStateAt(blocksPerChunk, blocksPerChunk, blocksPerChunk, null, false);
+                                 globalIdx++;
+                             } else {
+                                //setblock xyz to air here
+                             }
+                         }
+                     }
+                 }
+            } catch (Exception e1) {
+                e1.printStackTrace();
+            }
+        });
+        panel.add(EncButton);
+        panel.add(DecButton);
+        frame.add(panel);
+        frame.setSize(500, 300);
+        frame.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
+        frame.setVisible(true);
+        //// RandomAccessFile raf = new RandomAccessFile("r.0.0.mca", "rw");
+        //// RandomAccessFileSource dataSource = new RandomAccessFileSource(raf);
+        //// RegionFile region = new RegionFile(dataSource, 0, 0);
+        //// for (int i = 0; i<16; i++) {
+        ////     ChunkColumn chunk = region.getOrCreateChunk(0, i);
+        ////     fillChunk(chunk, new BlockState("minecraft:emerald_block"));
+        ////     region.writeColumn(chunk);
+        //// }
         // }else {
         // System.out.println("list:");
         // s.nextLine();
@@ -84,7 +136,17 @@ public class Main {
         // }
 
     }
-
+    public static Path getFile() throws Exception {
+        JFileChooser fileChooser = new JFileChooser();
+        int result = fileChooser.showOpenDialog(null);
+        if (result == JFileChooser.APPROVE_OPTION) {
+            File externalFile = fileChooser.getSelectedFile();
+            Path destination = Paths.get(externalFile.getName());
+            Files.copy(externalFile.toPath(), destination, StandardCopyOption.REPLACE_EXISTING);
+            return destination;
+        }
+        return null;
+    }
     public static List<String> enc(String f) throws IOException {
         byte[] by = Files.readAllBytes(Paths.get(f));
         String filenameOnly = Paths.get(f).getFileName().toString();
