@@ -1,10 +1,9 @@
 [
+  "minecraft:air",
   "minecraft:acacia_log",
   "minecraft:acacia_wood",
   "minecraft:stripped_acacia_log",
   "minecraft:stripped_acacia_wood",
-  "minecraft:void_air",
-  "minecraft:cave_air",
   "minecraft:deepslate",
   "minecraft:deepslate_bricks",
   "minecraft:deepslate_tiles",
